@@ -1,0 +1,26 @@
+    .menu:
+        call    display_menu
+        input   choice
+        mov 	edx, choice
+        call    atoi
+        cmp     eax, 8
+        je      .exit
+        cmp     eax, 7
+        je      .decrement
+        loop    .menu
+    .decrement:
+        display_message decrementMsg
+        input   first
+        mov 	edx, first
+        call    atoi
+        ;sub     eax, 1
+        ;push    eax
+        ;display_message resultMsg
+        ;pop     eax
+        call    iprint
+        call    print_new_line
+        jmp     .menu
+    .exit:
+        display_message resultMsg
+        call 	print_new_line
+        call 	exit
