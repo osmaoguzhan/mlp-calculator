@@ -11,12 +11,13 @@ section .data
     decrementMenuItem db '7 - Decrement', 0h
     exitMenuItem db '8 - Exit', 0h
     yourChoice db 'Your choice: ', 0h
-    firstMsg db 'Please enter the first digit: ', 0h
-    secondMsg db 'Please enter the second digit: ', 0h  
+    firstMsg db 'Please enter the first number: ', 0h
+    secondMsg db 'Please enter the second number: ', 0h  
     resultMsg db 'Result: ', 0h,
     incrementMsg db 'Please enter number to increment: ', 0h,
     decrementMsg db 'Please enter number to decrement: ', 0h,
     testMsg db 'This is the test message', 0h
+    bye db 'Bye bye!', 0h
     
 section .bss          
    first resb 6
@@ -30,6 +31,14 @@ section .text
 %macro display_message 1
     mov     eax, %1
     call 	print_string
+%endmacro
+
+%macro print_result 0
+    push    eax
+    display_message resultMsg
+    pop     eax
+    call    print_integer
+    call    print_new_line
 %endmacro
 
 display_menu:
@@ -57,19 +66,132 @@ display_menu:
     ret
 
 _start:
-	display_message firstMsg
-	input 	first
-	
-	;mov 	eax, secondMsg
-    ;call 	print_string
-    ;display_message secondMsg
-    ;input 	second
 
-    mov     edx, first
-    call    to_int
-
-    ;mov     eax, 100    ; move our first number into eax
-    mov     ebx, 10     ; move our second number into ebx
-    mul     ebx         ; multiply eax by ebx
-    call    iprint
-    call    exit
+    .menu:
+        call    display_menu
+        input   choice
+        ;display_message menuDesign
+        ;call print_new_line
+        mov 	edx, choice
+        call    to_int
+        cmp     eax, 8
+        je      .exit
+        cmp     eax, 7
+        je      .decrement
+        cmp     eax, 6
+        je      .increment
+        cmp     eax, 5
+        je      .modulo
+        cmp     eax, 4
+        je      .division
+        cmp     eax, 3
+        je      .multiplication
+        cmp     eax, 2
+        je      .subtraction
+        cmp     eax, 1
+        je      .addition
+        loop    .menu
+    .addition:
+        display_message firstMsg
+        input   first
+        mov 	edx, first
+        call    to_int
+        mov     ebx, eax
+        push    ebx
+        display_message secondMsg
+        input   second
+        mov 	edx, second
+        call    to_int
+        pop     ebx
+        add     eax, ebx
+        print_result
+        jmp     .menu
+    .subtraction:
+        display_message firstMsg
+        input   first
+        mov 	edx, first
+        call    to_int
+        mov     ebx, eax
+        push    ebx
+        display_message secondMsg
+        input   second
+        mov 	edx, second
+        call    to_int
+        pop     ebx
+        mov     edx, eax
+        mov     eax, ebx
+        sub     eax, edx
+        print_result
+        jmp     .menu
+    .multiplication:
+        display_message firstMsg
+        input   first
+        mov 	edx, first
+        call    to_int
+        mov     ebx, eax
+        push    ebx
+        display_message secondMsg
+        input   second
+        mov 	edx, second
+        call    to_int
+        pop     ebx
+        mul     ebx
+        print_result
+        jmp     .menu
+    .division:
+        display_message firstMsg
+        input   first
+        mov 	edx, first
+        call    to_int
+        mov     ebx, eax
+        push    ebx
+        display_message secondMsg
+        input   second
+        mov 	edx, second
+        call    to_int
+        pop     ebx
+        mov     ecx, eax
+        mov     eax, ebx
+        mov     edx, 0
+        div     ecx
+        print_result
+        jmp     .menu
+    .modulo:
+        display_message firstMsg
+        input   first
+        mov 	edx, first
+        call    to_int
+        mov     ebx, eax
+        push    ebx
+        display_message secondMsg
+        input   second
+        mov 	edx, second
+        call    to_int
+        pop     ebx
+        mov     ecx, eax
+        mov     eax, ebx
+        mov     edx, 0
+        div     ecx
+        mov     eax, edx
+        print_result
+        jmp     .menu
+    .increment:
+        display_message incrementMsg
+        input   first
+        mov 	edx, first
+        call    to_int
+        inc     eax
+        print_result
+        jmp     .menu
+    .decrement:
+        display_message decrementMsg
+        input   first
+        mov 	edx, first
+        call    to_int
+        dec     eax
+        print_result
+        jmp     .menu
+    .exit:
+        display_message bye
+        call 	print_new_line
+        call 	exit

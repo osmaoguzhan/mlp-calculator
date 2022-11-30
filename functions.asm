@@ -3,30 +3,43 @@ SYS_EXIT 	equ 1
 SYS_WRITE 	equ 4
 SYS_READ 	equ 3
 STDIN 		equ 0
+SYS_EXE     equ 11
 %define SYSCALL int 0x80
+%define NULL 0h
 
 section .data   
-	nLine 	db	 '',0xA,0xD
-
+	nLine 	  db   '',0xA,0xD
 ;------------------------------
-; print given message
+; calculates the length of the given string
 ;------------------------------
-%macro print 1
-	mov 	eax, %1
-	call 	pprint
-%endmacro
-
+strlen:
+	push 	ebx			
+	mov		ebx, eax	    ; pointing to the same address
+    .next:
+        cmp		byte [eax], 0	; zero is the end of the string
+        jz		.end			; if it's the end of the string, jump the end
+        inc		eax				; if the condition is not satisfied, increment 1 byte
+        jmp		.next			; loop
+    .end:
+        sub		eax, ebx		; eax is increased so eax - ebx will give the length (byte difference between addresses) of the string. 
+        pop 	ebx				
+        ret
 ;------------------------------
 ; get input from user
 ;------------------------------
 %macro input 1
 	mov		ecx, %1  
 	mov		edx, 6
+	call    scan
+%endmacro
+;------------------------------
+; read user input
+;------------------------------
+scan:
 	mov		eax, SYS_READ
 	mov		ebx, STDIN
 	SYSCALL
-%endmacro
-
+	ret
 ;------------------------------
 ; print new line
 ;------------------------------
@@ -43,162 +56,89 @@ print_new_line:
 ; Note: Requires 0Ah (null byte at the end of the message)
 ;------------------------------
 print_string:
-    push    edx
-    push    ecx
-    push    ebx
-    push    eax
-    call    strlen
- 
-    mov     edx, eax
-    pop     eax
 
-    mov     ecx, eax
-    mov     ebx, STDOUT
-    mov     eax, SYS_WRITE
-    SYSCALL
- 
-    pop     ebx
-    pop     ecx
-    pop     edx
-    ret
- 
-sprint:
-    push    edx
-    push    ecx
-    push    ebx
-    push    eax
-    call    strlen
- 
-    mov     edx, eax
-    pop     eax
- 
-    mov     ecx, eax
-    mov     ebx, 1
-    mov     eax, 4
-    int     80h
- 
-    pop     ebx
-    pop     ecx
-    pop     edx
-    ret
-;------------------------------
-; print procedure
-; Note: Does not requires 0Ah (null byte at the end of the message)
-;------------------------------
-print_string_lf:
-	call 	print_string 	; printing the message
-	push 	eax				 
-	mov		eax, 0h		; pushing null byte to eax
-	;push	eax
-	;mov		eax, esp
-	call 	print_string
-	;pop		eax
-	pop		eax
-	ret
+    .prepare:
+        push    edx
+        push    ecx
+        push    ebx
+        push    eax
+        call    strlen
+    .print:
+        mov     edx, eax        ; strlen returned the length in eax register, so we must move to edx
+        pop     eax
+        mov     ecx, eax        ; we popped the eax and it holds our message
+        mov     ebx, STDOUT
+        mov     eax, SYS_WRITE
+        SYSCALL
+    .end:
+        pop     ebx
+        pop     ecx
+        pop     edx
+        ret
 
 ;------------------------------
-; read user input
+; convert given string value to integer
+; Example:
+; Suppose that we entered 11
+; First step - get 1 as character, eax is 0 and 10*eax = 0, eax + ecx = 1
+; Second step - get 1 as character, eax is 1 and 10*eax = 10, eax + ecx = 11
+; End of the string 
 ;------------------------------
-scan:
-	mov		eax, SYS_READ
-	mov		ebx, STDIN
-	SYSCALL
-	ret
-
-;------------------------------
-; stores the length of the string in eax
-;------------------------------
-strlen:
-	push 	ebx			; push ebx to stack to preserve
-	mov		ebx, eax	; point to the same address
-next:
-	cmp		byte [eax], 0	; zero is the end of the string
-	jz		end				; if the condition is satisfied, jump to end
-	inc		eax				; if the condition is not satisfied, increment 1 byte
-	jmp		next			; loop
-end:
-	sub		eax, ebx		; eax is increased so eax - ebx will give the length (byte difference between addresses) of the string. 
-	pop 	ebx				
-	ret
-
-
 to_int:
     .prepare:
         push    edx
         push    ecx
         xor     eax, eax 
     .convert:
-        movzx   ecx, byte [edx] ; get a character
-        inc     edx ; ready for next one
-        cmp     ecx, '0' ; valid?
+        movzx   ecx, byte [edx] ; get a character from the string
+        cmp     ecx, '0'        ; is the character valid
         jb      .finish
-        cmp     ecx, '9'
-        ja      .finish
-        sub     ecx, '0' ; "convert" character to number
-        imul    eax, 10 ; multiply "result so far" by ten
-        add     eax, ecx ; add in current digit
-        jmp     .convert ; until done
+        sub     ecx, '0'        ; convert to number
+        imul    eax, 10         ; to have decimal value we must multiply by ten
+        add     eax, ecx        ; add current digit
+        inc     edx             ; we must increase edx to get next character
+        jmp     .convert        ; till conditions are satisfied
     .finish:
         pop     ecx
         pop     edx
         ret
 
-
-
-    ;pop     esi             ; restore esi from the value we pushed onto the stack at the start
-    ;pop     edx             ; restore edx from the value we pushed onto the stack at the start
-    ;pop     ecx             ; restore ecx from the value we pushed onto the stack at the start
-   ; pop     ebx             ; restore ebx from the value we pushed onto the stack at the start
-   ; ret
-iprint:
-    push    eax             ; preserve eax on the stack to be restored after function runs
-    push    ecx             ; preserve ecx on the stack to be restored after function runs
-    push    edx             ; preserve edx on the stack to be restored after function runs
-    push    esi             ; preserve esi on the stack to be restored after function runs
-    mov     ecx, 0          ; counter of how many bytes we need to print in the end
+;------------------------------
+; procedure to print integers
+;------------------------------
+print_integer:
+    
+    .prepare:
+        push    eax             ; preserve eax on the stack to be restored after function runs
+        push    ecx             ; preserve ecx on the stack to be restored after function runs
+        push    edx             ; preserve edx on the stack to be restored after function runs
+        push    esi             ; preserve esi on the stack to be restored after function runs
+        mov     ecx, 0          ; counter of how many bytes we need to print in the end
  
-divideLoop:
-    inc     ecx             ; count each byte to print - number of characters
-    mov     edx, 0          ; empty edx
-    mov     esi, 10         ; mov 10 into esi
-    idiv    esi             ; divide eax by esi
-    add     edx, 48         ; convert edx to it's ascii representation - edx holds the remainder after a divide instruction
-    push    edx             ; push edx (string representation of an intger) onto the stack
-    cmp     eax, 0          ; can the integer be divided anymore?
-    jnz     divideLoop      ; jump if not zero to the label divideLoop
- 
-printLoop:
-    dec     ecx             ; count down each byte that we put on the stack
-    mov     eax, esp        ; mov the stack pointer into eax for printing
-    call    sprint          ; call our string print function
-    pop     eax             ; remove last character from the stack to move esp forward
-    cmp     ecx, 0          ; have we printed all bytes we pushed onto the stack?
-    jnz     printLoop       ; jump is not zero to the label printLoop
- 
-    pop     esi             ; restore esi from the value we pushed onto the stack at the start
-    pop     edx             ; restore edx from the value we pushed onto the stack at the start
-    pop     ecx             ; restore ecx from the value we pushed onto the stack at the start
-    pop     eax
-    ret
+    .divide:
+        inc     ecx             ; count each byte to print - number of characters
+        mov     edx, 0          ; empty edx
+        mov     esi, 10         ; mov 10 into esi
+        idiv    esi             ; divide eax by esi
+        add     edx, 48         ; convert edx to it's ascii representation - edx holds the remainder after a divide instruction
+        push    edx             ; push edx (string representation of an intger) onto the stack
+        cmp     eax, 0          ; can the integer be divided anymore?
+        jnz     .divide      ; jump if not zero to the label divideLoop
+    
+    .iterate_and_print:
+        dec     ecx             ; count down each byte that we put on the stack
+        mov     eax, esp        ; mov the stack pointer into eax for printing
+        call    print_string     ; call our string print function
+        pop     eax             ; remove last character from the stack to move esp forward
+        cmp     ecx, 0          ; have we printed all bytes we pushed onto the stack?
+        jnz     .iterate_and_print       ; jump is not zero to the label printLoop
 
-iprintLF:
-    call    iprint          ; call our integer printing function
- 
-    push    eax             ; push eax onto the stack to preserve it while we use the eax register in this function
-    mov     eax, 0Ah        ; move 0Ah into eax - 0Ah is the ascii character for a linefeed
-    push    eax             ; push the linefeed onto the stack so we can get the address
-    mov     eax, esp        ; move the address of the current stack pointer into eax for sprint
-    call    sprint          ; call our sprint function
-    pop     eax             ; remove our linefeed character from the stack
-    pop     eax             ; restore the original value of eax before our function was called
-    ret
-
-
-
-
-
-
-
+    .end:
+        pop     esi             ; restore esi from the value we pushed onto the stack at the start
+        pop     edx             ; restore edx from the value we pushed onto the stack at the start
+        pop     ecx             ; restore ecx from the value we pushed onto the stack at the start
+        pop     eax
+        ret
 
 ;------------------------------
 ; exit
