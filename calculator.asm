@@ -66,7 +66,6 @@ display_menu:
     ret
 
 _start:
-
     .menu:
         call    display_menu
         input   choice

@@ -109,18 +109,18 @@ to_int:
 print_integer:
     
     .prepare:
-        push    eax             ; preserve eax on the stack to be restored after function runs
-        push    ecx             ; preserve ecx on the stack to be restored after function runs
-        push    edx             ; preserve edx on the stack to be restored after function runs
-        push    esi             ; preserve esi on the stack to be restored after function runs
-        mov     ecx, 0          ; counter of how many bytes we need to print in the end
+        push    eax             
+        push    ecx             
+        push    edx             
+        push    ebx        
+        mov     ecx, 0          ; counter
  
     .divide:
-        inc     ecx             ; count each byte to print - number of characters
+        inc     ecx             ; increment counter
         mov     edx, 0          ; empty edx
-        mov     esi, 10         ; mov 10 into esi
-        idiv    esi             ; divide eax by esi
-        add     edx, 48         ; convert edx to it's ascii representation - edx holds the remainder after a divide instruction
+        mov     ebx, 10         ; mov 10 into ebx
+        div     ebx             ; divide eax by ebx
+        add     edx, '0'         ; convert edx to it's ascii representation - edx holds the remainder after a divide instruction
         push    edx             ; push edx (string representation of an intger) onto the stack
         cmp     eax, 0          ; can the integer be divided anymore?
         jnz     .divide      ; jump if not zero to the label divideLoop
@@ -134,7 +134,7 @@ print_integer:
         jnz     .iterate_and_print       ; jump is not zero to the label printLoop
 
     .end:
-        pop     esi             ; restore esi from the value we pushed onto the stack at the start
+        pop     ebx             ; restore esi from the value we pushed onto the stack at the start
         pop     edx             ; restore edx from the value we pushed onto the stack at the start
         pop     ecx             ; restore ecx from the value we pushed onto the stack at the start
         pop     eax
